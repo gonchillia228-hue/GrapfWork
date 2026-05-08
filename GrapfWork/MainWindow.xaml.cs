@@ -73,29 +73,75 @@ namespace GraphApp
         public static (int[,] dist, int[,] next) Dantzig(Graph graph)
         {
             int n = graph.Vertices;
-            int[,] dist = (int[,])graph.Matrix.Clone();
+            int[,] dist = new int[n, n];
             int[,] next = new int[n, n];
 
+            // 1. Початкова ініціалізація нескінченністю
             for (int i = 0; i < n; i++)
-                for (int j = 0; j < n; j++)
-                    next[i, j] = (dist[i, j] < Graph.Infinity && i != j) ? j : -1;
-
-            for (int k = 0; k < n; k++)
             {
-                for (int i = 0; i < n; i++)
+                for (int j = 0; j < n; j++)
                 {
-                    if (dist[i, k] >= Graph.Infinity) continue;
-                    for (int j = 0; j < n; j++)
+                    dist[i, j] = Graph.Infinity;
+                    next[i, j] = -1;
+                }
+            }
+
+            if (n > 0) dist[0, 0] = 0;
+
+            // 2. Основний цикл: поступово додаємо вершину k (від 1 до n-1)
+            for (int k = 1; k < n; k++)
+            {
+                // Крок А: Знаходимо відстані від старих вершин (i) до нової (k) 
+                // та від нової (k) до старих (i)
+                for (int i = 0; i < k; i++)
+                {
+                    dist[i, k] = graph.Matrix[i, k];
+                    if (dist[i, k] < Graph.Infinity) next[i, k] = k;
+
+                    dist[k, i] = graph.Matrix[k, i];
+                    if (dist[k, i] < Graph.Infinity) next[k, i] = i;
+
+                    for (int j = 0; j < k; j++)
                     {
-                        int newDist = dist[i, k] + dist[k, j];
-                        if (newDist < dist[i, j])
+                        // Оновлюємо шлях від i до k через j
+                        if (dist[i, j] < Graph.Infinity && graph.Matrix[j, k] < Graph.Infinity)
                         {
-                            dist[i, j] = newDist;
-                            next[i, j] = next[i, k];
+                            if (dist[i, j] + graph.Matrix[j, k] < dist[i, k])
+                            {
+                                dist[i, k] = dist[i, j] + graph.Matrix[j, k];
+                                next[i, k] = next[i, j];
+                            }
+                        }
+                        // Оновлюємо шлях від k до i через j
+                        if (graph.Matrix[k, j] < Graph.Infinity && dist[j, i] < Graph.Infinity)
+                        {
+                            if (dist[k, i] > graph.Matrix[k, j] + dist[j, i])
+                            {
+                                dist[k, i] = graph.Matrix[k, j] + dist[j, i];
+                                next[k, i] = next[k, j] != -1 ? next[k, j] : j;
+                            }
                         }
                     }
                 }
+
+                // Крок Б: Оновлюємо всі шляхи між старими вершинами через нову вершину k
+                for (int i = 0; i < k; i++)
+                {
+                    for (int j = 0; j < k; j++)
+                    {
+                        if (dist[i, k] < Graph.Infinity && dist[k, j] < Graph.Infinity)
+                        {
+                            if (dist[i, k] + dist[k, j] < dist[i, j])
+                            {
+                                dist[i, j] = dist[i, k] + dist[k, j];
+                                next[i, j] = next[i, k];
+                            }
+                        }
+                    }
+                }
+                dist[k, k] = 0;
             }
+
             return (dist, next);
         }
     }

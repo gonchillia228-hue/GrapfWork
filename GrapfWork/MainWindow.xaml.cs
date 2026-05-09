@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics; // НОВЕ: Для вимірювання часу (Stopwatch)
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -38,13 +39,17 @@ namespace GraphApp
         }
     }
 
+    // ====================================================================
+    // НОВИЙ PathFinder З ПРОМІЖНИМИ КРОКАМИ ТА ВІДНОВЛЕННЯМ ШЛЯХУ
+    // ====================================================================
     public static class PathFinder
     {
-        public static (int[,] dist, int[,] next) FloydWarshall(Graph graph)
+        public static (int[,] dist, int[,] next, List<int[,]> steps) FloydWarshall(Graph graph)
         {
             int n = graph.Vertices;
             int[,] dist = (int[,])graph.Matrix.Clone();
             int[,] next = new int[n, n];
+            var steps = new List<int[,]>();
 
             for (int i = 0; i < n; i++)
                 for (int j = 0; j < n; j++)
@@ -66,8 +71,11 @@ namespace GraphApp
                         }
                     }
                 }
+                // Зберігаємо матрицю на кожному кроці k
+                steps.Add((int[,])dist.Clone());
             }
-            return (dist, next);
+
+            return (dist, next, steps);
         }
 
         public static (int[,] dist, int[,] next) Dantzig(Graph graph)
@@ -76,7 +84,6 @@ namespace GraphApp
             int[,] dist = new int[n, n];
             int[,] next = new int[n, n];
 
-            // 1. Початкова ініціалізація нескінченністю
             for (int i = 0; i < n; i++)
             {
                 for (int j = 0; j < n; j++)
@@ -88,11 +95,8 @@ namespace GraphApp
 
             if (n > 0) dist[0, 0] = 0;
 
-            // 2. Основний цикл: поступово додаємо вершину k (від 1 до n-1)
             for (int k = 1; k < n; k++)
             {
-                // Крок А: Знаходимо відстані від старих вершин (i) до нової (k) 
-                // та від нової (k) до старих (i)
                 for (int i = 0; i < k; i++)
                 {
                     dist[i, k] = graph.Matrix[i, k];
@@ -103,7 +107,6 @@ namespace GraphApp
 
                     for (int j = 0; j < k; j++)
                     {
-                        // Оновлюємо шлях від i до k через j
                         if (dist[i, j] < Graph.Infinity && graph.Matrix[j, k] < Graph.Infinity)
                         {
                             if (dist[i, j] + graph.Matrix[j, k] < dist[i, k])
@@ -112,7 +115,7 @@ namespace GraphApp
                                 next[i, k] = next[i, j];
                             }
                         }
-                        // Оновлюємо шлях від k до i через j
+
                         if (graph.Matrix[k, j] < Graph.Infinity && dist[j, i] < Graph.Infinity)
                         {
                             if (dist[k, i] > graph.Matrix[k, j] + dist[j, i])
@@ -124,7 +127,6 @@ namespace GraphApp
                     }
                 }
 
-                // Крок Б: Оновлюємо всі шляхи між старими вершинами через нову вершину k
                 for (int i = 0; i < k; i++)
                 {
                     for (int j = 0; j < k; j++)
@@ -143,6 +145,19 @@ namespace GraphApp
             }
 
             return (dist, next);
+        }
+
+        public static List<int> GetPath(int u, int v, int[,] next)
+        {
+            if (next[u, v] == -1) return null;
+
+            var path = new List<int> { u };
+            while (u != v)
+            {
+                u = next[u, v];
+                path.Add(u);
+            }
+            return path;
         }
     }
 
@@ -241,7 +256,6 @@ namespace GraphApp
                             Padding = new Thickness(2)
                         };
 
-                        // --- ФІКС: Зміщення тексту на 30% від початку лінії ---
                         double textX = positions[i].X + (positions[j].X - positions[i].X) * 0.3;
                         double textY = positions[i].Y + (positions[j].Y - positions[i].Y) * 0.3;
 
@@ -277,7 +291,6 @@ namespace GraphApp
             InitializeComponent();
         }
 
-        // --- ОБРОБНИК КНОПКИ ДОВІДКИ ---
         private void HelpButton_Click(object sender, RoutedEventArgs e)
         {
             string helpText =
@@ -334,18 +347,73 @@ namespace GraphApp
             }
         }
 
+        // ====================================================================
+        // ОНОВЛЕНИЙ МЕТОД ОБЧИСЛЕННЯ: ЧАС, ПРОМІЖНІ КРОКИ ТА ШЛЯХ
+        // ====================================================================
         private void ComputePathsButton_Click(object sender, RoutedEventArgs e)
         {
             if (graph == null) { MessageBox.Show("Граф не створено."); return; }
 
             var algo = (AlgorithmComboBox.SelectedItem as ComboBoxItem)?.Content.ToString();
             int[,] dist;
+            int[,] next = null;
+            List<int[,]> steps = null;
 
-            if (algo == "Floyd-Warshall") dist = PathFinder.FloydWarshall(graph).dist;
-            else if (algo == "Dantzig") dist = PathFinder.Dantzig(graph).dist;
+            // Запускаємо таймер
+            var sw = Stopwatch.StartNew();
+
+            if (algo == "Floyd-Warshall")
+            {
+                var result = PathFinder.FloydWarshall(graph);
+                dist = result.dist;
+                next = result.next;
+                steps = result.steps;
+            }
+            else if (algo == "Dantzig")
+            {
+                var result = PathFinder.Dantzig(graph);
+                dist = result.dist;
+                next = result.next;
+            }
             else return;
 
-            ResultTextBox.Text = FormatMatrix(dist);
+            // Зупиняємо таймер
+            sw.Stop();
+
+            var sb = new StringBuilder();
+
+            sb.AppendLine("=== ФІНАЛЬНА МАТРИЦЯ ===");
+            sb.AppendLine(FormatMatrix(dist));
+
+            sb.AppendLine($"Час виконання: {sw.ElapsedMilliseconds} ms");
+
+            // Виведення проміжних кроків
+            if (steps != null)
+            {
+                sb.AppendLine("\n=== ПРОМІЖНІ КРОКИ ===");
+                for (int i = 0; i < steps.Count; i++)
+                {
+                    sb.AppendLine($"\nКрок k = {i}");
+                    sb.AppendLine(FormatMatrix(steps[i]));
+                }
+            }
+
+            // Демонстрація відновлення шляху
+            if (next != null)
+            {
+                var path = PathFinder.GetPath(0, graph.Vertices - 1, next);
+                if (path != null)
+                {
+                    sb.AppendLine($"\nШлях 0 → {graph.Vertices - 1}:");
+                    sb.AppendLine(string.Join(" -> ", path));
+                }
+                else
+                {
+                    sb.AppendLine($"\nШляху 0 → {graph.Vertices - 1} не існує");
+                }
+            }
+
+            ResultTextBox.Text = sb.ToString();
         }
 
         private string FormatMatrix(int[,] mat)
@@ -363,7 +431,6 @@ namespace GraphApp
             return sb.ToString();
         }
 
-        // --- МЕТОД ЗБЕРЕЖЕННЯ ---
         private void SaveResultButton_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(ResultTextBox.Text))

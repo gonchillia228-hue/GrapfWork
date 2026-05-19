@@ -1,7 +1,7 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics; // НОВЕ: Для вимірювання часу (Stopwatch)
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -39,9 +39,6 @@ namespace GraphApp
         }
     }
 
-    // ====================================================================
-    // НОВИЙ PathFinder З ПРОМІЖНИМИ КРОКАМИ ТА ВІДНОВЛЕННЯМ ШЛЯХУ
-    // ====================================================================
     public static class PathFinder
     {
         public static (int[,] dist, int[,] next, List<int[,]> steps) FloydWarshall(Graph graph)
@@ -71,7 +68,6 @@ namespace GraphApp
                         }
                     }
                 }
-                // Зберігаємо матрицю на кожному кроці k
                 steps.Add((int[,])dist.Clone());
             }
 
@@ -223,7 +219,7 @@ namespace GraphApp
 
     public static class GraphVisualizer
     {
-        public static void Draw(Graph graph, Canvas canvas)
+        public static void Draw(Graph graph, Canvas canvas, List<int> path = null)
         {
             canvas.Children.Clear();
             double w = canvas.ActualWidth == 0 ? 800 : canvas.ActualWidth;
@@ -245,13 +241,37 @@ namespace GraphApp
                 {
                     if (graph.Matrix[i, j] < Graph.Infinity && i != j)
                     {
-                        var line = new Line { X1 = positions[i].X, Y1 = positions[i].Y, X2 = positions[j].X, Y2 = positions[j].Y, Stroke = Brushes.Black, StrokeThickness = 2 };
+                        // Перевіряємо, чи належить це ребро до знайденого шляху
+                        bool isPathEdge = false;
+                        if (path != null)
+                        {
+                            for (int p = 0; p < path.Count - 1; p++)
+                            {
+                                if (path[p] == i && path[p + 1] == j)
+                                {
+                                    isPathEdge = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        var line = new Line
+                        {
+                            X1 = positions[i].X,
+                            Y1 = positions[i].Y,
+                            X2 = positions[j].X,
+                            Y2 = positions[j].Y,
+                            Stroke = isPathEdge ? Brushes.Red : Brushes.Black,
+                            StrokeThickness = isPathEdge ? 4 : 1.5,
+                            Opacity = isPathEdge ? 1.0 : 0.4 // Робимо звичайні ребра трохи прозорими
+                        };
                         canvas.Children.Add(line);
 
                         var weightText = new TextBlock
                         {
                             Text = graph.Matrix[i, j].ToString(),
-                            Foreground = Brushes.Red,
+                            Foreground = isPathEdge ? Brushes.DarkRed : Brushes.Gray,
+                            FontWeight = isPathEdge ? FontWeights.Bold : FontWeights.Normal,
                             Background = Brushes.White,
                             Padding = new Thickness(2)
                         };
@@ -268,7 +288,17 @@ namespace GraphApp
 
             for (int i = 0; i < graph.Vertices; i++)
             {
-                var ellipse = new Ellipse { Width = radius * 2, Height = radius * 2, Fill = Brushes.LightBlue, Stroke = Brushes.Black, StrokeThickness = 2 };
+                // Перевіряємо, чи входить вершина у знайдений шлях
+                bool isNodeInPath = path != null && path.Contains(i);
+
+                var ellipse = new Ellipse
+                {
+                    Width = radius * 2,
+                    Height = radius * 2,
+                    Fill = isNodeInPath ? Brushes.Yellow : Brushes.LightBlue,
+                    Stroke = isNodeInPath ? Brushes.Red : Brushes.Black,
+                    StrokeThickness = isNodeInPath ? 3 : 1
+                };
                 Canvas.SetLeft(ellipse, positions[i].X - radius);
                 Canvas.SetTop(ellipse, positions[i].Y - radius);
                 canvas.Children.Add(ellipse);
@@ -347,9 +377,6 @@ namespace GraphApp
             }
         }
 
-        // ====================================================================
-        // ОНОВЛЕНИЙ МЕТОД ОБЧИСЛЕННЯ: ЧАС, ПРОМІЖНІ КРОКИ ТА ШЛЯХ
-        // ====================================================================
         private void ComputePathsButton_Click(object sender, RoutedEventArgs e)
         {
             if (graph == null) { MessageBox.Show("Граф не створено."); return; }
@@ -359,7 +386,6 @@ namespace GraphApp
             int[,] next = null;
             List<int[,]> steps = null;
 
-            // Запускаємо таймер
             var sw = Stopwatch.StartNew();
 
             if (algo == "Floyd-Warshall")
@@ -377,7 +403,6 @@ namespace GraphApp
             }
             else return;
 
-            // Зупиняємо таймер
             sw.Stop();
 
             var sb = new StringBuilder();
@@ -385,9 +410,8 @@ namespace GraphApp
             sb.AppendLine("=== ФІНАЛЬНА МАТРИЦЯ ===");
             sb.AppendLine(FormatMatrix(dist));
 
-            sb.AppendLine($"Час виконання: {sw.ElapsedMilliseconds} ms");
+            sb.AppendLine($"Час виконання: {sw.Elapsed.TotalMilliseconds:F4} ms");
 
-            // Виведення проміжних кроків
             if (steps != null)
             {
                 sb.AppendLine("\n=== ПРОМІЖНІ КРОКИ ===");
@@ -398,7 +422,7 @@ namespace GraphApp
                 }
             }
 
-            // Демонстрація відновлення шляху
+            // Відновлення шляху та виклик перемальовування
             if (next != null)
             {
                 var path = PathFinder.GetPath(0, graph.Vertices - 1, next);
@@ -406,11 +430,20 @@ namespace GraphApp
                 {
                     sb.AppendLine($"\nШлях 0 → {graph.Vertices - 1}:");
                     sb.AppendLine(string.Join(" -> ", path));
+
+                    // Відмальовуємо граф із підсвіченим шляхом
+                    GraphVisualizer.Draw(graph, GraphCanvas, path);
                 }
                 else
                 {
                     sb.AppendLine($"\nШляху 0 → {graph.Vertices - 1} не існує");
+                    // Відмальовуємо звичайний граф
+                    GraphVisualizer.Draw(graph, GraphCanvas);
                 }
+            }
+            else
+            {
+                GraphVisualizer.Draw(graph, GraphCanvas);
             }
 
             ResultTextBox.Text = sb.ToString();

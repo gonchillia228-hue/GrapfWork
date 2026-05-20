@@ -8,6 +8,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
 namespace GraphApp
@@ -329,18 +330,20 @@ namespace GraphApp
             string helpText =
                 "ІНСТРУКЦІЯ КОРИСТУВАЧА\n\n" +
                 "1. Введення графа:\n" +
-                "   • З файлу (.txt): Першим рядком вкажіть загальну кількість вершин. У наступних рядках пропишіть ребра (від, до, вага).\n" +
-                "   • Вручну: Вводьте кожне ребро з нового рядка у форматі 'від до вага' (наприклад: 0 1 15). Кількість вершин програма визначить автоматично.\n\n" +
+                "   • З файлу (.txt): Першим рядком вкажіть загальну кількість вершин. Далі пропишіть ребра (від, до, вага).\n" +
+                "   • Вручну: Вводьте кожне ребро з нового рядка у форматі 'від до вага'.\n" +
+                "   • Орієнтованість: Якщо зняти галочку, програма автоматично створить двосторонні дороги для кожного введеного ребра.\n\n" +
                 "2. Обчислення:\n" +
-                "   • Оберіть метод (Floyd-Warshall або Dantzig) і вкажіть маршрут між вершинами.\n" +
-                "   • Натисніть «Обчислити».\n" +
-                "   • У матриці символ '∞' означає, що шляху між даними вершинами не існує.\n\n" +
+                "   • Оберіть метод (Floyd-Warshall або Dantzig).\n" +
+                "   • Вкажіть початкову ('Від') та кінцеву ('До') вершини, щоб прокласти конкретний маршрут.\n" +
+                "   • Окрім часу, програма також виведе практичну складність (реальну кількість виконаних ітерацій).\n\n" +
                 "3. Візуалізація:\n" +
-                "   • Мережа автоматично генерується в правій частині вікна.\n\n" +
-                "4. Експорт:\n" +
-                "   • Натисніть «Зберегти у файл», щоб вивантажити результати у документ.";
+                "   • Граф малюється автоматично. Знайдений найкоротший шлях буде підсвічено червоним кольором та жовтими вершинами.\n\n" +
+                "4. Експорт результатів:\n" +
+                "   • «Зберегти у файл» – вивантажує текстовий звіт (матриці та кроки) у .txt документ.\n" +
+                "   • «Зберегти картинку графа» – робить знімок поточного стану графа і зберігає його у форматі .png.";
 
-            MessageBox.Show(helpText, "Довідка", MessageBoxButton.OK, MessageBoxImage.Question);
+            MessageBox.Show(helpText, "Довідка: Пошук найкоротших шляхів", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void AddEdgesButton_Click(object sender, RoutedEventArgs e)
@@ -473,6 +476,53 @@ namespace GraphApp
             ResultTextBox.Text = sb.ToString();
         }
 
+        private void SaveImageButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Перевіряємо, чи є взагалі що зберігати (чи не порожнє полотно)
+            if (GraphCanvas.Children.Count == 0)
+            {
+                MessageBox.Show("Немає графа для збереження. Спочатку побудуйте його.", "Увага", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var sfd = new SaveFileDialog
+            {
+                Filter = "PNG Image|*.png", // Дозволяємо зберігати лише у форматі картинки
+                Title = "Зберегти зображення графа",
+                FileName = "MyGraph.png"
+            };
+
+            if (sfd.ShowDialog() == true)
+            {
+                try
+                {
+                    // 1. Створюємо "віртуальний фотоапарат" розміром з наше полотно
+                    var rtb = new RenderTargetBitmap(
+                        (int)GraphCanvas.RenderSize.Width,
+                        (int)GraphCanvas.RenderSize.Height,
+                        96d, 96d, PixelFormats.Default);
+
+                    // 2. "Фотографуємо" полотно
+                    rtb.Render(GraphCanvas);
+
+                    // 3. Створюємо кодувальник, який перетворить "фотографію" у формат PNG
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(rtb));
+
+                    // 4. Записуємо картинку у файл на диску
+                    using (var fs = File.OpenWrite(sfd.FileName))
+                    {
+                        encoder.Save(fs);
+                    }
+
+                    MessageBox.Show("Зображення графа успішно збережено!", "Успіх", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Помилка при збереженні зображення: {ex.Message}", "Помилка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
         private string FormatMatrix(int[,] mat)
         {
             var sb = new StringBuilder();

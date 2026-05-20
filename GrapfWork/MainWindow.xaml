@@ -5,36 +5,25 @@
 
     <Grid Margin="10" Background="#F5F5F5">
         <Grid.ColumnDefinitions>
-            <!-- Ліва панель для елементів керування -->
             <ColumnDefinition Width="350"/>
-            <!-- Відступ між панелями -->
             <ColumnDefinition Width="10"/>
-            <!-- Права панель для візуалізації (займає весь залишковий простір) -->
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- ================= ЛІВА ПАНЕЛЬ: КЕРУВАННЯ ТА РЕЗУЛЬТАТИ ================= -->
         <Grid Grid.Column="0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
-                <!-- Верхня панель з кнопкою "?" -->
                 <RowDefinition Height="Auto"/>
-                <!-- Файл -->
                 <RowDefinition Height="Auto"/>
-                <!-- Ручне введення -->
                 <RowDefinition Height="Auto"/>
-                <!-- Алгоритми -->
                 <RowDefinition Height="*"/>
-                <!-- Результат -->
             </Grid.RowDefinitions>
 
-            <!-- НОВЕ: Заголовок і кнопка Довідки -->
             <Grid Grid.Row="0" Margin="0,0,0,10">
                 <TextBlock Text="Панель керування" FontWeight="Bold" FontSize="16" VerticalAlignment="Center" Foreground="#333333"/>
                 <Button Content=" ? " Click="HelpButton_Click" HorizontalAlignment="Right" Width="25" Height="25" Background="#FFD1E8FF" FontWeight="Bold" ToolTip="Як користуватися програмою" BorderBrush="#FF8AB4F8"/>
             </Grid>
 
-            <!-- 1. Завантаження з файлу -->
             <GroupBox Header="1. Завантаження з файлу" Grid.Row="1" Margin="0,0,0,10" FontWeight="Bold">
                 <StackPanel Margin="5">
                     <Button Content="Вибрати файл" Click="LoadGraphButton_Click" Height="30" FontWeight="Normal"/>
@@ -42,7 +31,6 @@
                 </StackPanel>
             </GroupBox>
 
-            <!-- 2. Ручне введення -->
             <GroupBox Header="АБО 2. Ручне введення" Grid.Row="2" Margin="0,0,0,10" FontWeight="Bold">
                 <StackPanel Margin="5" TextElement.FontWeight="Normal">
                     <TextBlock Text="Формат: from to weight" Margin="0,0,0,5" Foreground="DimGray"/>
@@ -59,13 +47,27 @@
                 </StackPanel>
             </GroupBox>
 
-            <!-- 3. Алгоритми -->
             <GroupBox Header="3. Обчислення шляхів" Grid.Row="3" Margin="0,0,0,10" FontWeight="Bold">
                 <StackPanel Margin="5" TextElement.FontWeight="Normal">
                     <ComboBox x:Name="AlgorithmComboBox" Margin="0,0,0,10" Height="25">
                         <ComboBoxItem Content="Floyd-Warshall" IsSelected="True"/>
                         <ComboBoxItem Content="Dantzig"/>
                     </ComboBox>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Від:" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBox x:Name="StartNodeTextBox" Grid.Column="1" Text="0" Height="22" TextAlignment="Center"/>
+                        <TextBlock Text="До:" Grid.Column="3" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBox x:Name="EndNodeTextBox" Grid.Column="4" Text="1" Height="22" TextAlignment="Center"/>
+                    </Grid>
+
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -73,24 +75,20 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Button Content="Обчислити" Click="ComputePathsButton_Click" Grid.Column="0" Height="30" Background="#FFD1E8FF" FontWeight="Bold"/>
-                        <!-- Кнопка збереження результату -->
                         <Button Content="Зберегти у файл" Click="SaveResultButton_Click" Grid.Column="2" Height="30"/>
                     </Grid>
                 </StackPanel>
             </GroupBox>
 
-            <!-- 4. Результати -->
             <GroupBox Header="Матриця найкоротших відстаней" Grid.Row="4" FontWeight="Bold">
                 <TextBox x:Name="ResultTextBox" Margin="5" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="14" IsReadOnly="True" FontWeight="Normal"/>
             </GroupBox>
         </Grid>
 
-        <!-- ================= ПРАВА ПАНЕЛЬ: ВІЗУАЛІЗАЦІЯ ================= -->
         <GroupBox Header="Візуалізація графа" Grid.Column="2" FontWeight="Bold">
             <Border Background="White" CornerRadius="5" BorderBrush="LightGray" BorderThickness="1" Margin="5">
                 <Canvas x:Name="GraphCanvas" ClipToBounds="True"/>
             </Border>
         </GroupBox>
-
     </Grid>
 </Window>

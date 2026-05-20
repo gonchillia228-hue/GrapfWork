@@ -41,12 +41,13 @@ namespace GraphApp
 
     public static class PathFinder
     {
-        public static (int[,] dist, int[,] next, List<int[,]> steps) FloydWarshall(Graph graph)
+        public static (int[,] dist, int[,] next, List<int[,]> steps, long operations) FloydWarshall(Graph graph)
         {
             int n = graph.Vertices;
             int[,] dist = (int[,])graph.Matrix.Clone();
             int[,] next = new int[n, n];
             var steps = new List<int[,]>();
+            long operations = 0;
 
             for (int i = 0; i < n; i++)
                 for (int j = 0; j < n; j++)
@@ -60,6 +61,7 @@ namespace GraphApp
 
                     for (int j = 0; j < n; j++)
                     {
+                        operations++;
                         int newDist = dist[i, k] + dist[k, j];
                         if (newDist < dist[i, j])
                         {
@@ -71,14 +73,15 @@ namespace GraphApp
                 steps.Add((int[,])dist.Clone());
             }
 
-            return (dist, next, steps);
+            return (dist, next, steps, operations);
         }
 
-        public static (int[,] dist, int[,] next) Dantzig(Graph graph)
+        public static (int[,] dist, int[,] next, long operations) Dantzig(Graph graph)
         {
             int n = graph.Vertices;
             int[,] dist = new int[n, n];
             int[,] next = new int[n, n];
+            long operations = 0;
 
             for (int i = 0; i < n; i++)
             {
@@ -103,6 +106,7 @@ namespace GraphApp
 
                     for (int j = 0; j < k; j++)
                     {
+                        operations++;
                         if (dist[i, j] < Graph.Infinity && graph.Matrix[j, k] < Graph.Infinity)
                         {
                             if (dist[i, j] + graph.Matrix[j, k] < dist[i, k])
@@ -127,6 +131,7 @@ namespace GraphApp
                 {
                     for (int j = 0; j < k; j++)
                     {
+                        operations++;
                         if (dist[i, k] < Graph.Infinity && dist[k, j] < Graph.Infinity)
                         {
                             if (dist[i, k] + dist[k, j] < dist[i, j])
@@ -140,7 +145,7 @@ namespace GraphApp
                 dist[k, k] = 0;
             }
 
-            return (dist, next);
+            return (dist, next, operations);
         }
 
         public static List<int> GetPath(int u, int v, int[,] next)
@@ -241,7 +246,6 @@ namespace GraphApp
                 {
                     if (graph.Matrix[i, j] < Graph.Infinity && i != j)
                     {
-                        // Перевіряємо, чи належить це ребро до знайденого шляху
                         bool isPathEdge = false;
                         if (path != null)
                         {
@@ -263,7 +267,7 @@ namespace GraphApp
                             Y2 = positions[j].Y,
                             Stroke = isPathEdge ? Brushes.Red : Brushes.Black,
                             StrokeThickness = isPathEdge ? 4 : 1.5,
-                            Opacity = isPathEdge ? 1.0 : 0.4 // Робимо звичайні ребра трохи прозорими
+                            Opacity = isPathEdge ? 1.0 : 0.4
                         };
                         canvas.Children.Add(line);
 
@@ -288,7 +292,6 @@ namespace GraphApp
 
             for (int i = 0; i < graph.Vertices; i++)
             {
-                // Перевіряємо, чи входить вершина у знайдений шлях
                 bool isNodeInPath = path != null && path.Contains(i);
 
                 var ellipse = new Ellipse
@@ -329,14 +332,15 @@ namespace GraphApp
                 "   • З файлу (.txt): Першим рядком вкажіть загальну кількість вершин. У наступних рядках пропишіть ребра (від, до, вага).\n" +
                 "   • Вручну: Вводьте кожне ребро з нового рядка у форматі 'від до вага' (наприклад: 0 1 15). Кількість вершин програма визначить автоматично.\n\n" +
                 "2. Обчислення:\n" +
-                "   • Оберіть метод (Floyd-Warshall або Dantzig) і натисніть «Обчислити».\n" +
-                "   • У матриці символ '∞' означає, що шляху між даними вершинами не існує (граф орієнтований).\n\n" +
+                "   • Оберіть метод (Floyd-Warshall або Dantzig) і вкажіть маршрут між вершинами.\n" +
+                "   • Натисніть «Обчислити».\n" +
+                "   • У матриці символ '∞' означає, що шляху між даними вершинами не існує.\n\n" +
                 "3. Візуалізація:\n" +
-                "   • Мережа автоматично генерується в правій частині вікна після введення даних.\n\n" +
+                "   • Мережа автоматично генерується в правій частині вікна.\n\n" +
                 "4. Експорт:\n" +
-                "   • Натисніть «Зберегти у файл», щоб вивантажити отриману матрицю результатів у текстовий документ.";
+                "   • Натисніть «Зберегти у файл», щоб вивантажити результати у документ.";
 
-            MessageBox.Show(helpText, "Довідка: Пошук найкоротших шляхів", MessageBoxButton.OK, MessageBoxImage.Question);
+            MessageBox.Show(helpText, "Довідка", MessageBoxButton.OK, MessageBoxImage.Question);
         }
 
         private void AddEdgesButton_Click(object sender, RoutedEventArgs e)
@@ -381,10 +385,24 @@ namespace GraphApp
         {
             if (graph == null) { MessageBox.Show("Граф не створено."); return; }
 
+            if (!int.TryParse(StartNodeTextBox.Text, out int startNode) ||
+                !int.TryParse(EndNodeTextBox.Text, out int endNode))
+            {
+                MessageBox.Show("Будь ласка, введіть коректні числа для вершин.", "Увага", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (startNode < 0 || startNode >= graph.Vertices || endNode < 0 || endNode >= graph.Vertices)
+            {
+                MessageBox.Show($"Номери вершин мають бути в межах від 0 до {graph.Vertices - 1}.", "Помилка", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
             var algo = (AlgorithmComboBox.SelectedItem as ComboBoxItem)?.Content.ToString();
             int[,] dist;
             int[,] next = null;
             List<int[,]> steps = null;
+            long operations = 0;
 
             var sw = Stopwatch.StartNew();
 
@@ -394,12 +412,14 @@ namespace GraphApp
                 dist = result.dist;
                 next = result.next;
                 steps = result.steps;
+                operations = result.operations;
             }
             else if (algo == "Dantzig")
             {
                 var result = PathFinder.Dantzig(graph);
                 dist = result.dist;
                 next = result.next;
+                operations = result.operations;
             }
             else return;
 
@@ -411,6 +431,7 @@ namespace GraphApp
             sb.AppendLine(FormatMatrix(dist));
 
             sb.AppendLine($"Час виконання: {sw.Elapsed.TotalMilliseconds:F4} ms");
+            sb.AppendLine($"Практична складність (ітерацій): {operations}");
 
             if (steps != null)
             {
@@ -422,23 +443,26 @@ namespace GraphApp
                 }
             }
 
-            // Відновлення шляху та виклик перемальовування
             if (next != null)
             {
-                var path = PathFinder.GetPath(0, graph.Vertices - 1, next);
+                var path = PathFinder.GetPath(startNode, endNode, next);
                 if (path != null)
                 {
-                    sb.AppendLine($"\nШлях 0 → {graph.Vertices - 1}:");
+                    sb.AppendLine($"\nШлях {startNode} → {endNode}:");
                     sb.AppendLine(string.Join(" -> ", path));
-
-                    // Відмальовуємо граф із підсвіченим шляхом
                     GraphVisualizer.Draw(graph, GraphCanvas, path);
                 }
                 else
                 {
-                    sb.AppendLine($"\nШляху 0 → {graph.Vertices - 1} не існує");
-                    // Відмальовуємо звичайний граф
+                    sb.AppendLine($"\nШляху {startNode} → {endNode} не існує");
                     GraphVisualizer.Draw(graph, GraphCanvas);
+
+                    // НОВЕ: Спливаюче вікно з повідомленням про відсутність шляху
+                    MessageBox.Show(
+                        $"Неможливо прокласти маршрут.\nШляху між вершинами {startNode} та {endNode} не існує у заданому напрямку.",
+                        "Маршрут не знайдено",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
                 }
             }
             else

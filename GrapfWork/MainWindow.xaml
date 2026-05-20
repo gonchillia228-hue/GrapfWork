@@ -93,7 +93,7 @@
                 </Grid.RowDefinitions>
 
                 <Border Grid.Row="0" Background="White" CornerRadius="5" BorderBrush="LightGray" BorderThickness="1" Margin="5">
-                    <Canvas x:Name="GraphCanvas" ClipToBounds="True"/>
+                    <Canvas x:Name="GraphCanvas" ClipToBounds="True" Background="White"/>
                 </Border>
 
                 <Button Grid.Row="1" Content="Зберегти картинку графа" Click="SaveImageButton_Click" Height="30" Margin="5,0,5,5" HorizontalAlignment="Right" Width="200"/>

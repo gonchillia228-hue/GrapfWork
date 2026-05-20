@@ -460,7 +460,6 @@ namespace GraphApp
                     sb.AppendLine($"\nШляху {startNode} → {endNode} не існує");
                     GraphVisualizer.Draw(graph, GraphCanvas);
 
-                    // НОВЕ: Спливаюче вікно з повідомленням про відсутність шляху
                     MessageBox.Show(
                         $"Неможливо прокласти маршрут.\nШляху між вершинами {startNode} та {endNode} не існує у заданому напрямку.",
                         "Маршрут не знайдено",
@@ -478,7 +477,6 @@ namespace GraphApp
 
         private void SaveImageButton_Click(object sender, RoutedEventArgs e)
         {
-            // Перевіряємо, чи є взагалі що зберігати (чи не порожнє полотно)
             if (GraphCanvas.Children.Count == 0)
             {
                 MessageBox.Show("Немає графа для збереження. Спочатку побудуйте його.", "Увага", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -487,7 +485,7 @@ namespace GraphApp
 
             var sfd = new SaveFileDialog
             {
-                Filter = "PNG Image|*.png", // Дозволяємо зберігати лише у форматі картинки
+                Filter = "PNG Image|*.png",
                 Title = "Зберегти зображення графа",
                 FileName = "MyGraph.png"
             };
@@ -496,20 +494,16 @@ namespace GraphApp
             {
                 try
                 {
-                    // 1. Створюємо "віртуальний фотоапарат" розміром з наше полотно
                     var rtb = new RenderTargetBitmap(
                         (int)GraphCanvas.RenderSize.Width,
                         (int)GraphCanvas.RenderSize.Height,
                         96d, 96d, PixelFormats.Default);
 
-                    // 2. "Фотографуємо" полотно
                     rtb.Render(GraphCanvas);
 
-                    // 3. Створюємо кодувальник, який перетворить "фотографію" у формат PNG
                     var encoder = new PngBitmapEncoder();
                     encoder.Frames.Add(BitmapFrame.Create(rtb));
 
-                    // 4. Записуємо картинку у файл на диску
                     using (var fs = File.OpenWrite(sfd.FileName))
                     {
                         encoder.Save(fs);
@@ -523,6 +517,7 @@ namespace GraphApp
                 }
             }
         }
+
         private string FormatMatrix(int[,] mat)
         {
             var sb = new StringBuilder();
@@ -557,8 +552,46 @@ namespace GraphApp
             {
                 try
                 {
-                    File.WriteAllText(sfd.FileName, ResultTextBox.Text);
-                    MessageBox.Show("Результати успішно збережено!", "Успіх", MessageBoxButton.OK, MessageBoxImage.Information);
+                    var fileContent = new StringBuilder();
+
+                    // Блок 1: Початкова умова
+                    fileContent.AppendLine("=========================================");
+                    fileContent.AppendLine("===        ПОЧАТКОВА УМОВА ГРАФА       ===");
+                    fileContent.AppendLine("=========================================");
+
+                    if (graph != null)
+                    {
+                        fileContent.AppendLine($"Кількість вершин у графі: {graph.Vertices}");
+                        fileContent.AppendLine("Тип графа: Орієнтований\n");
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(ManualEdgesTextBox.Text))
+                    {
+                        fileContent.AppendLine("Введені ребра (від до вага):");
+                        fileContent.AppendLine(ManualEdgesTextBox.Text.Trim());
+                    }
+                    else if (FilePathTextBlock.Text != "Файл не вибрано" && File.Exists(FilePathTextBlock.Text))
+                    {
+                        fileContent.AppendLine($"Вхідні дані з файлу ({System.IO.Path.GetFileName(FilePathTextBlock.Text)}):");
+                        try
+                        {
+                            fileContent.AppendLine(File.ReadAllText(FilePathTextBlock.Text).Trim());
+                        }
+                        catch (Exception)
+                        {
+                            fileContent.AppendLine("[Не вдалося зчитати файл конфігурації]");
+                        }
+                    }
+                    fileContent.AppendLine("=========================================\n\n");
+
+                    // Блок 2: Матриці та результати обчислень
+                    fileContent.AppendLine("=========================================");
+                    fileContent.AppendLine("===             РОЗВ'ЯЗАННЯ            ===");
+                    fileContent.AppendLine("=========================================");
+                    fileContent.AppendLine(ResultTextBox.Text);
+
+                    File.WriteAllText(sfd.FileName, fileContent.ToString());
+                    MessageBox.Show("Результати успішно збережено у файл!", "Успіх", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
                 {

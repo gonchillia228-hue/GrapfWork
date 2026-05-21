@@ -77,11 +77,12 @@ namespace GraphApp
             return (dist, next, steps, operations);
         }
 
-        public static (int[,] dist, int[,] next, long operations) Dantzig(Graph graph)
+        public static (int[,] dist, int[,] next, List<int[,]> steps, long operations) Dantzig(Graph graph)
         {
             int n = graph.Vertices;
             int[,] dist = new int[n, n];
             int[,] next = new int[n, n];
+            var steps = new List<int[,]>(); // Додали список для проміжних кроків
             long operations = 0;
 
             for (int i = 0; i < n; i++)
@@ -94,6 +95,9 @@ namespace GraphApp
             }
 
             if (n > 0) dist[0, 0] = 0;
+
+            // Зберігаємо початковий стан (k = 0, розглядаємо лише вершину 0)
+            steps.Add((int[,])dist.Clone());
 
             for (int k = 1; k < n; k++)
             {
@@ -144,9 +148,12 @@ namespace GraphApp
                     }
                 }
                 dist[k, k] = 0;
+
+                // Зберігаємо стан матриці після додавання вершини k
+                steps.Add((int[,])dist.Clone());
             }
 
-            return (dist, next, operations);
+            return (dist, next, steps, operations);
         }
 
         public static List<int> GetPath(int u, int v, int[,] next)
@@ -332,7 +339,7 @@ namespace GraphApp
                 "1. Введення графа:\n" +
                 "   • З файлу (.txt): Першим рядком вкажіть загальну кількість вершин. Далі пропишіть ребра (від, до, вага).\n" +
                 "   • Вручну: Вводьте кожне ребро з нового рядка у форматі 'від до вага'.\n" +
-                "   • Орієнтованість: Якщо зняти галочку, програма автоматично створить двосторонні дороги для кожного введеного ребра.\n\n" +
+                "   • Граф є орієнтованим та зваженим.\n\n" +
                 "2. Обчислення:\n" +
                 "   • Оберіть метод (Floyd-Warshall або Dantzig).\n" +
                 "   • Вкажіть початкову ('Від') та кінцеву ('До') вершини, щоб прокласти конкретний маршрут.\n" +
@@ -422,6 +429,7 @@ namespace GraphApp
                 var result = PathFinder.Dantzig(graph);
                 dist = result.dist;
                 next = result.next;
+                steps = result.steps; // Додали отримання кроків
                 operations = result.operations;
             }
             else return;
@@ -588,6 +596,12 @@ namespace GraphApp
                     fileContent.AppendLine("=========================================");
                     fileContent.AppendLine("===             РОЗВ'ЯЗАННЯ            ===");
                     fileContent.AppendLine("=========================================");
+
+                    // --- ДОДАНО ТУТ: Визначаємо і записуємо обраний метод ---
+                    string algoName = (AlgorithmComboBox.SelectedItem as ComboBoxItem)?.Content.ToString();
+                    fileContent.AppendLine($"Застосований метод: {algoName}\n");
+                    // --------------------------------------------------------
+
                     fileContent.AppendLine(ResultTextBox.Text);
 
                     File.WriteAllText(sfd.FileName, fileContent.ToString());
@@ -599,5 +613,6 @@ namespace GraphApp
                 }
             }
         }
+               
+        }
     }
-}
